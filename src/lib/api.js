@@ -46,13 +46,16 @@ export async function apiFetch(path, options = {}) {
   const url = apiUrl(path)
   let res
   try {
-    res = await fetch(url, options)
+    res = await fetch(url, {
+      ...options,
+      mode: 'cors',
+    })
   } catch (err) {
-    throw new Error(
+    const hint =
       err.message === 'Failed to fetch'
-        ? `Cannot reach API at ${API_BASE || url}. Check Railway is running and VITE_API_URL on Vercel.`
-        : err.message,
-    )
+        ? `Cannot reach API at ${API_BASE}. Redeploy Railway with latest code, set JWT_SECRET + MONGO_URI, and open ${API_BASE}/api/health in the browser.`
+        : err.message
+    throw new Error(hint)
   }
 
   const text = await res.text()

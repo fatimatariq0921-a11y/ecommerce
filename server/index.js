@@ -1,5 +1,4 @@
 import express from 'express'
-import cors from 'cors'
 import dotenv from 'dotenv'
 import mongoose from 'mongoose'
 import bcrypt from 'bcryptjs'
@@ -21,35 +20,37 @@ const allowedOrigins = (process.env.CLIENT_URL || 'http://localhost:5173')
   .filter(Boolean)
 
 const isAllowedOrigin = (origin) => {
-  if (!origin) return true
+  if (!origin) return false
   if (allowedOrigins.includes(origin)) return true
   try {
     const { hostname, protocol } = new URL(origin)
     if (hostname === 'localhost' || hostname === '127.0.0.1') return true
-    if (protocol === 'https:' && (hostname.endsWith('.vercel.app') || hostname === 'vercel.app')) {
-      return true
-    }
+    // Any Vercel deployment (*.vercel.app)
+    if (protocol === 'https:' && hostname.endsWith('.vercel.app')) return true
+    // Allow other https frontends in production (Railway + Vercel)
+    if (process.env.NODE_ENV === 'production' && protocol === 'https:') return true
   } catch {
     return false
   }
   return false
 }
 
-app.use(
-  cors({
-    origin(origin, callback) {
-      if (isAllowedOrigin(origin)) {
-        callback(null, origin || true)
-      } else {
-        callback(null, false)
-      }
-    },
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-  }),
-)
-app.options(/.*/, cors())
+// CORS first — handle preflight before anything else (fixes Vercel → Railway)
+app.use((req, res, next) => {
+  const origin = req.headers.origin
+  if (origin && isAllowedOrigin(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin)
+    res.setHeader('Vary', 'Origin')
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+    res.setHeader('Access-Control-Max-Age', '86400')
+  }
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end()
+  }
+  next()
+})
+
 app.use(express.json())
 
 const userSchema = new mongoose.Schema(
@@ -289,8 +290,8 @@ const start = async () => {
     useMemoryStore = true
     console.warn(`MongoDB unavailable (${error.message}). Using in-memory store.`)
   }
-  app.listen(PORT, () => {
-    console.log(`API running on http://localhost:${PORT}`)
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`API running on port ${PORT}`)
   })
 }
 

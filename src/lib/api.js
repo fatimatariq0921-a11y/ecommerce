@@ -1,61 +1,91 @@
 /**
  * API client
- * - Local dev: leave VITE_API_URL empty → Vite proxies /api to localhost:5000
- * - Vercel production: set VITE_API_URL to your Railway URL (required)
+ * - Local dev  : leave VITE_API_URL empty → Vite proxies /api to localhost:5000
+ * - Production : set VITE_API_URL to your Railway public URL on Vercel, then redeploy
+ *
+ * How to get the correct Railway URL:
+ *   Railway dashboard → your service → Settings → Networking → Public URL
+ *   It looks like: https://ecommerce-production-xxxx.up.railway.app
+ *                                               ^^^^  (random 4-char suffix)
  */
+
 function normalizeApiBase(raw) {
-  let base = String(raw ?? '').trim().replace(/^['"]|['"]$/g, '')
+  let base = String(raw ?? '').trim().replace(/^['"]+|['"]+$/g, '')
   if (!base) return ''
-
-  if (!/^https?:\/\//i.test(base)) {
-    base = `https://${base}`
-  }
-
-  return base.replace(/\/+$/, '').replace(/\/api$/, '')
+  if (!/^https?:\/\//i.test(base)) base = `https://${base}`
+  return base.replace(/\/+$/, '').replace(/\/api\/?$/, '')
 }
 
-function isBadBase(base) {
-  if (!base) return false
+/** Detect common Railway URL mistakes */
+function detectBadRailwayUrl(base) {
+  if (!base) return null
   try {
-    const host = new URL(base).hostname.toLowerCase()
-    return host.endsWith('.vercel.app') || host === 'vercel.app'
+    const { hostname } = new URL(base)
+    // User put Vercel URL instead of Railway
+    if (hostname.endsWith('.vercel.app')) {
+      return `"${base}" is your VERCEL URL — that's the frontend, not the backend! Use your RAILWAY URL instead.`
+    }
+    // User put the placeholder from .env.example (no real hash suffix)
+    if (hostname === 'ecommerce-api-production-xxxx.up.railway.app') {
+      return `"${base}" is just the placeholder from .env.example. Replace it with the real URL from Railway → Settings → Networking.`
+    }
+    // Suspiciously short railway URL (missing the unique -xxxx suffix)
+    if (hostname.endsWith('.up.railway.app') && !/\-[a-z0-9]{4,}\.up\.railway\.app$/.test(hostname)) {
+      return `"${base}" looks like an incomplete Railway URL. The real URL has a unique suffix like "-a1b2.up.railway.app". Check Railway → Settings → Networking.`
+    }
   } catch {
-    return true
+    return `"${base}" is not a valid URL.`
   }
+  return null
 }
 
 const envBase = normalizeApiBase(import.meta.env.VITE_API_URL)
-export const API_BASE = isBadBase(envBase) ? '' : envBase
+export const API_BASE = envBase
 
 export function apiUrl(path) {
   const p = path.startsWith('/') ? path : `/${path}`
+
   if (import.meta.env.PROD && !API_BASE) {
     throw new Error(
-      'VITE_API_URL is missing on Vercel. Add it (your Railway URL, e.g. https://xxx.up.railway.app), then redeploy.',
+      'MISSING_API_URL: VITE_API_URL is not set on Vercel. ' +
+      'Go to Vercel → your project → Settings → Environment Variables, ' +
+      'add VITE_API_URL = your Railway public URL (e.g. https://ecommerce-production-xxxx.up.railway.app), ' +
+      'then redeploy.',
     )
   }
+
+  const badMsg = detectBadRailwayUrl(API_BASE)
+  if (badMsg) {
+    throw new Error(`BAD_API_URL: ${badMsg}`)
+  }
+
   return API_BASE ? `${API_BASE}${p}` : p
 }
 
 function isHtmlBody(text) {
-  const start = text.trimStart().slice(0, 20).toLowerCase()
-  return start.startsWith('<!doctype') || start.startsWith('<html')
+  const s = text.trimStart().slice(0, 20).toLowerCase()
+  return s.startsWith('<!doctype') || s.startsWith('<html')
 }
 
 export async function apiFetch(path, options = {}) {
   const url = apiUrl(path)
   let res
+
   try {
-    res = await fetch(url, {
-      ...options,
-      mode: 'cors',
-    })
+    res = await fetch(url, { ...options, mode: 'cors' })
   } catch (err) {
-    const hint =
-      err.message === 'Failed to fetch'
-        ? `Cannot reach API at ${API_BASE}. Use the exact URL from Railway → Settings → Networking (e.g. https://ecommerce-api-production-xxxx.up.railway.app), set it as VITE_API_URL on Vercel, then redeploy.`
-        : err.message
-    throw new Error(hint)
+    if (err.message === 'Failed to fetch') {
+      const tried = API_BASE || '(proxy)'
+      throw new Error(
+        `NETWORK_ERROR: Cannot reach the backend at ${tried}.\n` +
+        `1. Open Railway → your service → Settings → Networking\n` +
+        `2. Copy the Public URL (e.g. https://ecommerce-production-xxxx.up.railway.app)\n` +
+        `3. Go to Vercel → your project → Settings → Environment Variables\n` +
+        `4. Set VITE_API_URL = that Railway URL (no trailing slash)\n` +
+        `5. Redeploy on Vercel (Deployments → Redeploy)`,
+      )
+    }
+    throw new Error(err.message)
   }
 
   const text = await res.text()
@@ -75,15 +105,16 @@ export async function apiFetch(path, options = {}) {
   if (!looksJson) {
     if (isHtmlBody(text)) {
       throw new Error(
-        `API returned HTML (status ${res.status}). VITE_API_URL must be your Railway URL, not your Vercel site.`,
+        `API returned HTML (status ${res.status}). ` +
+        `VITE_API_URL must be your Railway URL, not your Vercel site URL.`,
       )
     }
     if (res.status === 405) {
       throw new Error(
-        'Method not allowed (405). Set VITE_API_URL to your Railway URL on Vercel and redeploy — do not use /api on the Vercel domain.',
+        'Method not allowed (405). VITE_API_URL must point to Railway — not to your Vercel /api route.',
       )
     }
-    throw new Error(text.slice(0, 160) || `Request failed (${res.status})`)
+    throw new Error(text.slice(0, 200) || `Request failed (${res.status})`)
   }
 
   let data

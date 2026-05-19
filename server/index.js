@@ -1,3 +1,5 @@
+import { fileURLToPath } from 'url'
+import { dirname, join } from 'path'
 import './crypto-polyfill.js'
 import express from 'express'
 import dotenv from 'dotenv'
@@ -5,7 +7,10 @@ import mongoose from 'mongoose'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 
-dotenv.config()
+// Always load .env from the server/ directory regardless of CWD
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
+dotenv.config({ path: join(__dirname, '.env') })
 
 const app = express()
 const PORT = process.env.PORT || 5000

@@ -288,9 +288,88 @@
   box-shadow: 0 8px 32px rgba(108,99,255,0.4); margin-top: 8px;
 }
 .place-order-btn:hover { transform: translateY(-2px); box-shadow: 0 16px 40px rgba(108,99,255,0.55); }
-.auth-modal { max-width: 430px; }
+.auth-modal { max-width: 480px; }
 .auth-body { gap: 14px; }
-.auth-error { color: #ef4444; font-size: 0.85rem; }
+.auth-error { color: #ef4444; font-size: 0.85rem; background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2); border-radius: 10px; padding: 10px 14px; }
+
+/* ── API Error Guide Card ───────────────────── */
+.api-error-guide {
+  background: rgba(245,158,11,0.08);
+  border: 1px solid rgba(245,158,11,0.3);
+  border-radius: 14px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.api-error-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #fbbf24;
+}
+.api-error-detail {
+  font-size: 0.8rem;
+  color: #a78a3a;
+  line-height: 1.5;
+  word-break: break-all;
+}
+.api-error-steps-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #8b8ba7;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.api-error-steps {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0;
+  margin: 0;
+}
+.api-error-steps li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.82rem;
+  color: #c8c8e8;
+  line-height: 1.4;
+}
+.api-step-num {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  background: rgba(245,158,11,0.2);
+  border: 1px solid rgba(245,158,11,0.4);
+  border-radius: 50%;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #fbbf24;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.api-error-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(245,158,11,0.15);
+  border: 1px solid rgba(245,158,11,0.3);
+  color: #fbbf24;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s;
+  align-self: flex-start;
+}
+.api-error-link:hover {
+  background: rgba(245,158,11,0.25);
+  border-color: #fbbf24;
+  transform: translateX(2px);
+}
 
 /* ── SUCCESS ────────────────────────────────── */
 .success-modal {

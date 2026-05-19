@@ -273,6 +273,50 @@ function SuccessModal({ ordNum, total, onClose }) {
 /* ══════════════════════════════════════════════
    AUTH MODAL
 ══════════════════════════════════════════════ */
+function ApiErrorGuide({ message }) {
+  const isNetworkErr = message.startsWith('NETWORK_ERROR:')
+  const isBadUrl     = message.startsWith('BAD_API_URL:')
+  const isMissingUrl = message.startsWith('MISSING_API_URL:')
+  const isConfigErr  = isNetworkErr || isBadUrl || isMissingUrl
+
+  if (!isConfigErr) return <p className="auth-error">{message}</p>
+
+  const steps = isNetworkErr || isBadUrl ? [
+    { num: '1', text: 'Open Railway → your service → Settings → Networking' },
+    { num: '2', text: 'Copy the Public URL (looks like: https://ecommerce-production-xxxx.up.railway.app)' },
+    { num: '3', text: 'Open Vercel → your project → Settings → Environment Variables' },
+    { num: '4', text: 'Add or update VITE_API_URL = that Railway URL (no trailing slash)' },
+    { num: '5', text: 'Go to Vercel → Deployments → click the 3-dot menu → Redeploy' },
+  ] : [
+    { num: '1', text: 'Open Vercel → your project → Settings → Environment Variables' },
+    { num: '2', text: 'Add VITE_API_URL = your Railway public URL' },
+    { num: '3', text: 'Redeploy on Vercel' },
+  ]
+
+  const rawDetail = message.replace(/^(NETWORK_ERROR|BAD_API_URL|MISSING_API_URL):/, '').trim().split('\n')[0]
+
+  return (
+    <div className="api-error-guide">
+      <div className="api-error-title">⚠️ Backend Not Reachable</div>
+      <p className="api-error-detail">{rawDetail}</p>
+      <div className="api-error-steps-label">Fix it in 3 minutes:</div>
+      <ol className="api-error-steps">
+        {steps.map(s => (
+          <li key={s.num}><span className="api-step-num">{s.num}</span>{s.text}</li>
+        ))}
+      </ol>
+      <a
+        className="api-error-link"
+        href="https://railway.app/dashboard"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        Open Railway Dashboard →
+      </a>
+    </div>
+  )
+}
+
 function AuthModal({ mode, onClose, onSuccess }) {
   const [isSignup, setIsSignup] = useState(mode === 'signup')
   const [name, setName] = useState('')
@@ -289,7 +333,6 @@ function AuthModal({ mode, onClose, onSuccess }) {
     try {
       const endpoint = isSignup ? '/api/auth/signup' : '/api/auth/login'
       const payload = isSignup ? { name, email, password } : { email, password }
-
       const data = await apiFetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -297,11 +340,7 @@ function AuthModal({ mode, onClose, onSuccess }) {
       })
       onSuccess(data)
     } catch (err) {
-      setError(
-        err.message === 'Failed to fetch'
-          ? 'Cannot reach backend API. On Vercel set VITE_API_URL to your Railway URL, then redeploy.'
-          : err.message,
-      )
+      setError(err.message || 'Something went wrong. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -329,7 +368,7 @@ function AuthModal({ mode, onClose, onSuccess }) {
             <label>Password</label>
             <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
           </div>
-          {error && <p className="auth-error">{error}</p>}
+          {error && <ApiErrorGuide message={error} />}
           <button className="place-order-btn" type="submit" disabled={loading}>
             {loading ? 'Please wait...' : isSignup ? 'Sign up' : 'Login'}
           </button>

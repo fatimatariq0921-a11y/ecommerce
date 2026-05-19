@@ -2,12 +2,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import './App.css'
 import { products, categories } from './data'
+import { apiFetch } from './lib/api.js'
 
 /* ── helpers ── */
 const stars = (r) => '★'.repeat(Math.round(r)) + '☆'.repeat(5 - Math.round(r))
 const fmt = (n) => `$${n.toFixed(2)}`
 const orderId = () => 'ORD-' + Math.random().toString(36).substring(2,8).toUpperCase()
-const API = import.meta.env.VITE_API_URL || ''
 
 /* ── badge colour helper ── */
 function BadgeClass(badge) {
@@ -290,21 +290,16 @@ function AuthModal({ mode, onClose, onSuccess }) {
       const endpoint = isSignup ? '/api/auth/signup' : '/api/auth/login'
       const payload = isSignup ? { name, email, password } : { email, password }
 
-      const res = await fetch(`${API}${endpoint}`, {
+      const data = await apiFetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
-
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.message || 'Authentication failed')
       onSuccess(data)
     } catch (err) {
       setError(
         err.message === 'Failed to fetch'
-          ? API
-            ? 'Cannot reach backend API. Check that the server is running and CORS is configured.'
-            : 'Cannot reach backend API. Run "npm run dev:full" or set VITE_API_URL for production.'
+          ? 'Cannot reach backend API. On Vercel set API_URL to your Railway URL, then redeploy.'
           : err.message,
       )
     } finally {
@@ -397,9 +392,8 @@ export default function App() {
   const cartCount = cart.reduce((s,i) => s+i.qty, 0)
 
   useEffect(() => {
-    fetch(`${API}/api/ratings`)
-      .then((res) => res.json())
-      .then((data) => setServerRatings(data))
+    apiFetch('/api/ratings')
+      .then((data) => setServerRatings(data || {}))
       .catch(() => {})
   }, [])
 
@@ -456,7 +450,7 @@ export default function App() {
     }
 
     try {
-      const res = await fetch(`${API}/api/ratings`, {
+      const data = await apiFetch('/api/ratings', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -464,8 +458,6 @@ export default function App() {
         },
         body: JSON.stringify({ productId, value }),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.message || 'Rating failed')
       setServerRatings((current) => ({
         ...current,
         [String(productId)]: { rating: data.rating, reviews: data.reviews },

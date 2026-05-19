@@ -264,6 +264,14 @@ app.post('/api/ratings', auth, async (req, res) => {
   }
 })
 
+app.use('/api', (_req, res) => {
+  res.status(404).json({ message: 'API route not found' })
+})
+
+app.get('/', (_req, res) => {
+  res.json({ ok: true, message: 'Ecommerce API', health: '/api/health' })
+})
+
 const start = async () => {
   if (!JWT_SECRET) {
     console.error('JWT_SECRET is required. Set it in your environment variables.')

@@ -1,9 +1,7 @@
 /**
  * API client
- * - Local dev: Vite proxies /api → localhost:5000 (leave VITE_API_URL empty)
- * - Vercel prod: uses same-origin /api → Vercel proxy (api/[...slug].js) → Railway
- *   Set API_URL on Vercel to your Railway URL.
- * - Optional: set VITE_API_URL to Railway URL for direct browser calls (needs CORS on Railway)
+ * - Local dev: leave VITE_API_URL empty → Vite proxies /api to localhost:5000
+ * - Vercel production: set VITE_API_URL to your Railway URL (required)
  */
 function normalizeApiBase(raw) {
   let base = String(raw ?? '').trim().replace(/^['"]|['"]$/g, '')
@@ -13,11 +11,10 @@ function normalizeApiBase(raw) {
     base = `https://${base}`
   }
 
-  base = base.replace(/\/+$/, '').replace(/\/api$/, '')
-  return base
+  return base.replace(/\/+$/, '').replace(/\/api$/, '')
 }
 
-function isBadProductionBase(base) {
+function isBadBase(base) {
   if (!base) return false
   try {
     const host = new URL(base).hostname.toLowerCase()
@@ -27,19 +24,16 @@ function isBadProductionBase(base) {
   }
 }
 
-function resolveApiBase() {
-  const fromEnv = normalizeApiBase(import.meta.env.VITE_API_URL)
-  if (isBadProductionBase(fromEnv)) return ''
-  if (fromEnv) return fromEnv
-  // Production on Vercel: same-origin /api proxy (see api/[...slug].js)
-  if (import.meta.env.PROD) return ''
-  return ''
-}
-
-export const API_BASE = resolveApiBase()
+const envBase = normalizeApiBase(import.meta.env.VITE_API_URL)
+export const API_BASE = isBadBase(envBase) ? '' : envBase
 
 export function apiUrl(path) {
   const p = path.startsWith('/') ? path : `/${path}`
+  if (import.meta.env.PROD && !API_BASE) {
+    throw new Error(
+      'VITE_API_URL is missing on Vercel. Add it (your Railway URL, e.g. https://xxx.up.railway.app), then redeploy.',
+    )
+  }
   return API_BASE ? `${API_BASE}${p}` : p
 }
 
@@ -56,7 +50,7 @@ export async function apiFetch(path, options = {}) {
   } catch (err) {
     throw new Error(
       err.message === 'Failed to fetch'
-        ? 'Cannot reach API. On Vercel, set API_URL to your Railway URL and redeploy.'
+        ? `Cannot reach API at ${API_BASE || url}. Check Railway is running and VITE_API_URL on Vercel.`
         : err.message,
     )
   }
@@ -78,9 +72,12 @@ export async function apiFetch(path, options = {}) {
   if (!looksJson) {
     if (isHtmlBody(text)) {
       throw new Error(
-        API_BASE
-          ? `API returned HTML. Fix VITE_API_URL (use Railway URL, not Vercel). Current: ${API_BASE}`
-          : 'API returned HTML. On Vercel, set API_URL to your Railway URL, redeploy, then try again.',
+        `API returned HTML (status ${res.status}). VITE_API_URL must be your Railway URL, not your Vercel site.`,
+      )
+    }
+    if (res.status === 405) {
+      throw new Error(
+        'Method not allowed (405). Set VITE_API_URL to your Railway URL on Vercel and redeploy — do not use /api on the Vercel domain.',
       )
     }
     throw new Error(text.slice(0, 160) || `Request failed (${res.status})`)

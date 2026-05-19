@@ -25,6 +25,7 @@ const isAllowedOrigin = (origin) => {
   if (allowedOrigins.includes(origin)) return true
   try {
     const { hostname, protocol } = new URL(origin)
+    if (hostname === 'localhost' || hostname === '127.0.0.1') return true
     if (protocol === 'https:' && (hostname.endsWith('.vercel.app') || hostname === 'vercel.app')) {
       return true
     }
@@ -38,14 +39,17 @@ app.use(
   cors({
     origin(origin, callback) {
       if (isAllowedOrigin(origin)) {
-        callback(null, true)
+        callback(null, origin || true)
       } else {
         callback(null, false)
       }
     },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   }),
 )
+app.options(/.*/, cors())
 app.use(express.json())
 
 const userSchema = new mongoose.Schema(

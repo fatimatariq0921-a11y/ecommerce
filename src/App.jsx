@@ -299,7 +299,7 @@ function AuthModal({ mode, onClose, onSuccess }) {
     } catch (err) {
       setError(
         err.message === 'Failed to fetch'
-          ? 'Cannot reach backend API. On Vercel set API_URL to your Railway URL, then redeploy.'
+          ? 'Cannot reach backend API. On Vercel set VITE_API_URL to your Railway URL, then redeploy.'
           : err.message,
       )
     } finally {

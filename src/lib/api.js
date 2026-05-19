@@ -53,7 +53,7 @@ export async function apiFetch(path, options = {}) {
   } catch (err) {
     const hint =
       err.message === 'Failed to fetch'
-        ? `Cannot reach API at ${API_BASE}. Redeploy Railway with latest code, set JWT_SECRET + MONGO_URI, and open ${API_BASE}/api/health in the browser.`
+        ? `Cannot reach API at ${API_BASE}. Use the exact URL from Railway → Settings → Networking (e.g. https://ecommerce-api-production-xxxx.up.railway.app), set it as VITE_API_URL on Vercel, then redeploy.`
         : err.message
     throw new Error(hint)
   }

@@ -1,3 +1,4 @@
+import './crypto-polyfill.js'
 import express from 'express'
 import dotenv from 'dotenv'
 import mongoose from 'mongoose'
@@ -107,7 +108,12 @@ const signToken = (user) =>
   })
 
 app.get('/api/health', (_req, res) => {
-  res.json({ ok: true, store: useMemoryStore ? 'memory' : 'mongo' })
+  res.json({
+    ok: true,
+    store: useMemoryStore ? 'memory' : 'mongo',
+    mongoConfigured: Boolean(MONGO_URI?.trim()),
+    jwtConfigured: Boolean(JWT_SECRET),
+  })
 })
 
 app.post('/api/auth/signup', async (req, res) => {
@@ -279,19 +285,27 @@ app.get('/', (_req, res) => {
 
 const start = async () => {
   if (!JWT_SECRET) {
-    console.error('JWT_SECRET is required. Set it in your environment variables.')
+    console.error('JWT_SECRET is required. Add it in Railway → Variables (not only .env file).')
     process.exit(1)
   }
-  try {
-    await mongoose.connect(MONGO_URI, { serverSelectionTimeoutMS: 5000 })
-    useMemoryStore = false
-    console.log('Connected to MongoDB')
-  } catch (error) {
+
+  const mongoUri = (MONGO_URI || '').trim()
+  if (mongoUri) {
+    try {
+      await mongoose.connect(mongoUri, { serverSelectionTimeoutMS: 10000 })
+      useMemoryStore = false
+      console.log('Connected to MongoDB')
+    } catch (error) {
+      useMemoryStore = true
+      console.warn(`MongoDB unavailable (${error.message}). Using in-memory store.`)
+    }
+  } else {
     useMemoryStore = true
-    console.warn(`MongoDB unavailable (${error.message}). Using in-memory store.`)
+    console.warn('MONGO_URI not set in Railway Variables. Using in-memory store.')
   }
+
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`API running on port ${PORT}`)
+    console.log(`API running on port ${PORT} (store: ${useMemoryStore ? 'memory' : 'mongo'})`)
   })
 }
 

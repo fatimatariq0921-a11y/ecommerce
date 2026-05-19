@@ -3,9 +3,13 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
-    "start": "vite",
+    "start": "node server/index.js",
     "dev": "vite",
+    "dev:web": "vite",
     "server": "node server/index.js",
     "start:api": "node server/index.js",
     "dev:full": "concurrently \"npm run server\" \"npm run dev\"",
